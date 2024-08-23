@@ -3,29 +3,53 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.charset.StandardCharsets
 
-// Retrieve the JSON string from the BPMN variable 's'
-def sString = execution.getVariable("s")
+try {
+    // Retrieve the JSON string from the BPMN variable 's'
+    def sString = execution.getVariable("s")
 
-// Parse the 's' variable to get the JSON payload
-def sMap = new JsonSlurper().parseText(sString)
-def jsonPayloadString = sMap.jsonPayload
+    if (!sString) {
+        println("Error: 's' variable is null or empty.")
+        return
+    }
 
-// Parse the JSON payload string into a JSON object
-def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
+    // Parse the 's' variable to get the JSON payload
+    def sMap = new JsonSlurper().parseText(sString)
 
-// Loop through each test plan and generate a JMX file
-jsonPayload.testPlans.eachWithIndex { testPlan, index ->
-    def testPlanName = testPlan.name
-    def numThreads = testPlan.threadGroup.numThreads
-    def rampTime = testPlan.threadGroup.rampTime
-    def loopCount = testPlan.threadGroup.loopCount
-    def domain = testPlan.httpSampler.domain
-    def path = testPlan.httpSampler.path
-    def method = testPlan.httpSampler.method
-    def description = testPlan.httpSampler.description
+    if (!sMap.jsonPayload) {
+        println("Error: 'jsonPayload' is missing in the 's' object.")
+        return
+    }
 
-    // Create JMX content
-    def jmxContent = """<?xml version="1.0" encoding="UTF-8"?>
+    // 'jsonPayload' is likely already a stringified JSON, so we need to parse it again
+    def jsonPayloadString = sMap.jsonPayload
+
+    if (!jsonPayloadString) {
+        println("Error: 'jsonPayloadString' is null or empty.")
+        return
+    }
+
+    // Parse the JSON payload string into a JSON object
+    def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
+
+    // Validate that 'testPlans' exists and is a list
+    if (!jsonPayload.testPlans || !(jsonPayload.testPlans instanceof List)) {
+        println("Error: 'testPlans' is missing or is not a list in the 'jsonPayload'.")
+        return
+    }
+
+    // Loop through each test plan and generate a JMX file
+    jsonPayload.testPlans.eachWithIndex { testPlan, index ->
+        def testPlanName = testPlan.name
+        def numThreads = testPlan.threadGroup?.numThreads ?: 1
+        def rampTime = testPlan.threadGroup?.rampTime ?: 1
+        def loopCount = testPlan.threadGroup?.loopCount ?: 1
+        def domain = testPlan.httpSampler?.domain ?: ""
+        def path = testPlan.httpSampler?.path ?: ""
+        def method = testPlan.httpSampler?.method ?: "GET"
+        def description = testPlan.httpSampler?.description ?: ""
+
+        // Create JMX content
+        def jmxContent = """<?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="${testPlanName}">
@@ -61,14 +85,17 @@ jsonPayload.testPlans.eachWithIndex { testPlan, index ->
 </jmeterTestPlan>
 """
 
-    // Define the file path for the JMX file
-    def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
+        // Define the file path for the JMX file
+        def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
 
-    try {
-        // Write the JMX content to the file
-        Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
-        println("JMX file created successfully at: " + filePath)
-    } catch (IOException e) {
-        println("Failed to create JMX file: " + e.message)
+        try {
+            // Write the JMX content to the file
+            Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
+            println("JMX file created successfully at: " + filePath)
+        } catch (IOException e) {
+            println("Failed to create JMX file: " + e.message)
+        }
     }
+} catch (Exception e) {
+    println("An unexpected error occurred: " + e.message)
 }
