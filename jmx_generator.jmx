@@ -1,0 +1,70 @@
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.charset.StandardCharsets
+
+// Retrieve the JSON payload from the BPMN variable
+def jsonPayload = execution.getVariable("jsonPayload")
+
+// Parse JSON input
+def json = new JsonSlurper().parseText(jsonPayload)
+
+// Loop through each test plan and generate a JMX file
+json.testPlans.eachWithIndex { testPlan, index ->
+    def testPlanName = testPlan.name
+    def numThreads = testPlan.threadGroup.numThreads
+    def rampTime = testPlan.threadGroup.rampTime
+    def loopCount = testPlan.threadGroup.loopCount
+    def domain = testPlan.httpSampler.domain
+    def path = testPlan.httpSampler.path
+    def method = testPlan.httpSampler.method
+    def description = testPlan.httpSampler.description
+
+    // Create JMX content
+    def jmxContent = """<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="${testPlanName}">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
+        <intProp name="ThreadGroup.num_threads">${numThreads}</intProp>
+        <intProp name="ThreadGroup.ramp_time">${rampTime}</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">${loopCount}</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="HTTP Request">
+          <stringProp name="HTTPSampler.domain">${domain}</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">${path}</stringProp>
+          <stringProp name="HTTPSampler.method">${method}</stringProp>
+          <stringProp name="HTTPSampler.comment">${description}</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
+"""
+
+    // Define the file path for the JMX file
+    def filePath = "/home/gaian/apache-jmeter-5.6.3/bin/output_${index + 1}.jmx"
+
+    try {
+        // Write the JMX content to the file
+        Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
+        println("JMX file created successfully at: " + filePath)
+    } catch (IOException e) {
+        println("Failed to create JMX file: " + e.message)
+    }
+}
