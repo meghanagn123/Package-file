@@ -3,11 +3,11 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.charset.StandardCharsets
 
-// Retrieve the JSON payload from the BPMN variable
-def jsonPayload = execution.getVariable("jsonPayload")
+// Retrieve the JSON payload string from the BPMN variable
+def jsonPayloadString = execution.getVariable("jsonPayload")
 
-// Parse JSON input
-def json = new JsonSlurper().parseText(jsonPayload)
+// Parse the JSON string into a Groovy object
+def json = new JsonSlurper().parseText(jsonPayloadString)
 
 // Loop through each test plan and generate a JMX file
 json.testPlans.eachWithIndex { testPlan, index ->
