@@ -6,11 +6,11 @@ import java.nio.charset.StandardCharsets
 // Retrieve the JSON payload string from the BPMN variable
 def jsonPayloadString = execution.getVariable("jsonPayload")
 
-// Parse the JSON string into a Groovy object
-def json = new JsonSlurper().parseText(jsonPayloadString)
+// The payload is double-encoded, so we need to decode it twice
+def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
 
 // Loop through each test plan and generate a JMX file
-json.testPlans.eachWithIndex { testPlan, index ->
+jsonPayload.testPlans.eachWithIndex { testPlan, index ->
     def testPlanName = testPlan.name
     def numThreads = testPlan.threadGroup.numThreads
     def rampTime = testPlan.threadGroup.rampTime
