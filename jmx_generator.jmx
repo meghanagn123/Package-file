@@ -3,10 +3,14 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.charset.StandardCharsets
 
-// Retrieve the JSON payload string from the BPMN variable
-def jsonPayloadString = execution.getVariable("jsonPayload")
+// Retrieve the JSON string from the BPMN variable 's'
+def sString = execution.getVariable("s")
 
-// The payload is double-encoded, so we need to decode it twice
+// Parse the 's' variable to get the JSON payload
+def sMap = new JsonSlurper().parseText(sString)
+def jsonPayloadString = sMap.jsonPayload
+
+// Parse the JSON payload string into a JSON object
 def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
 
 // Loop through each test plan and generate a JMX file
