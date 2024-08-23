@@ -58,7 +58,7 @@ json.testPlans.eachWithIndex { testPlan, index ->
 """
 
     // Define the file path for the JMX file
-    def filePath = "/home/gaian/apache-jmeter-5.6.3/bin/output_${index + 1}.jmx"
+    def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
 
     try {
         // Write the JMX content to the file
