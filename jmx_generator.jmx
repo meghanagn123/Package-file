@@ -12,6 +12,9 @@ try {
         return
     }
 
+    // Debug: Log the raw sString value
+    println("sString: " + sString)
+
     // Parse the 's' variable to get the JSON payload
     def sMap = new JsonSlurper().parseText(sString)
 
@@ -27,6 +30,9 @@ try {
         println("Error: 'jsonPayloadString' is null or empty.")
         return
     }
+
+    // Debug: Log the jsonPayloadString value
+    println("jsonPayloadString: " + jsonPayloadString)
 
     // Parse the JSON payload string into a JSON object
     def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
@@ -98,4 +104,5 @@ try {
     }
 } catch (Exception e) {
     println("An unexpected error occurred: " + e.message)
+    e.printStackTrace() // Print stack trace for more detailed debugging information
 }
