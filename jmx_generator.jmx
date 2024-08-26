@@ -4,7 +4,7 @@ import java.nio.file.Paths
 import java.nio.charset.StandardCharsets
 
 try {
-    // Retrieve the JSON string from the BPMN variable 's'
+    // Step 1: Retrieve the JSON string from the BPMN variable 's'
     def sString = execution.getVariable("s")
 
     if (!sString) {
@@ -12,7 +12,7 @@ try {
         return
     }
 
-    // Parse the 's' variable to get the JSON payload
+    // Step 2: Parse the 's' JSON string into a Groovy map
     def sMap = new JsonSlurper().parseText(sString)
 
     if (!sMap || !sMap.jsonPayload) {
@@ -20,21 +20,15 @@ try {
         return
     }
 
-    // Parse the 'jsonPayload' string to get the actual JSON object
-    def jsonPayloadString = sMap.jsonPayload
-
-    if (!jsonPayloadString) {
-        println("Error: 'jsonPayloadString' is null or empty.")
-        return
-    }
-
-    def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
+    // Step 3: Parse the 'jsonPayload' string into a Groovy map
+    def jsonPayload = new JsonSlurper().parseText(sMap.jsonPayload)
 
     if (!jsonPayload.testPlans || !(jsonPayload.testPlans instanceof List)) {
         println("Error: 'testPlans' is missing or is not a list in the 'jsonPayload'.")
         return
     }
 
+    // Step 4: Process each test plan and generate a JMX file
     jsonPayload.testPlans.eachWithIndex { testPlan, index ->
         def testPlanName = testPlan.name
         def numThreads = testPlan.threadGroup?.numThreads ?: 1
@@ -82,10 +76,10 @@ try {
 </jmeterTestPlan>
 """
 
-        // Define the file path for the JMX file
+        // Step 5: Define the file path for the JMX file
         def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
 
-        // Write the JMX content to the file
+        // Step 6: Write the JMX content to the file
         Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
         println("JMX file created successfully at: " + filePath)
     }
