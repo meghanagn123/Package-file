@@ -1,4 +1,7 @@
 import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.charset.StandardCharsets
 
 try {
     // Retrieve the JSON string from the BPMN variable 's'
@@ -12,7 +15,6 @@ try {
     // Parse the 's' variable to get the JSON payload
     def sMap = new JsonSlurper().parseText(sString)
 
-    // Check if 'jsonPayload' exists and is not null
     if (!sMap || !sMap.jsonPayload) {
         println("Error: 'jsonPayload' is missing in the 's' object.")
         return
@@ -28,13 +30,11 @@ try {
 
     def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
 
-    // Validate that 'testPlans' exists and is a list
     if (!jsonPayload.testPlans || !(jsonPayload.testPlans instanceof List)) {
         println("Error: 'testPlans' is missing or is not a list in the 'jsonPayload'.")
         return
     }
 
-    // Loop through each test plan and generate a JMX file
     jsonPayload.testPlans.eachWithIndex { testPlan, index ->
         def testPlanName = testPlan.name
         def numThreads = testPlan.threadGroup?.numThreads ?: 1
@@ -44,10 +44,6 @@ try {
         def path = testPlan.httpSampler?.path ?: ""
         def method = testPlan.httpSampler?.method ?: "GET"
         def description = testPlan.httpSampler?.description ?: ""
-
-        // Log the values to check if anything is null
-        println("Processing Test Plan: ${testPlanName}")
-        println("numThreads: ${numThreads}, rampTime: ${rampTime}, loopCount: ${loopCount}, domain: ${domain}, path: ${path}, method: ${method}")
 
         // Create JMX content
         def jmxContent = """<?xml version="1.0" encoding="UTF-8"?>
@@ -89,13 +85,9 @@ try {
         // Define the file path for the JMX file
         def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
 
-        try {
-            // Write the JMX content to the file
-            Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
-            println("JMX file created successfully at: " + filePath)
-        } catch (IOException e) {
-            println("Failed to create JMX file: " + e.message)
-        }
+        // Write the JMX content to the file
+        Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
+        println("JMX file created successfully at: " + filePath)
     }
 } catch (Exception e) {
     println("An unexpected error occurred: " + e.message)
