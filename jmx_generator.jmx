@@ -1,100 +1,103 @@
-import java.nio.file.Files
-import java.nio.file.Paths
+import groovy.json.JsonSlurper
 
-def emptyJMXContent = '''<?xml version="1.0" encoding="UTF-8"?>
+try {
+    // Retrieve the JSON string from the BPMN variable 's'
+    def sString = execution.getVariable("s")
+
+    if (!sString) {
+        println("Error: 's' variable is null or empty.")
+        return
+    }
+
+    // Parse the 's' variable to get the JSON payload
+    def sMap = new JsonSlurper().parseText(sString)
+
+    // Check if 'jsonPayload' exists and is not null
+    if (!sMap || !sMap.jsonPayload) {
+        println("Error: 'jsonPayload' is missing in the 's' object.")
+        return
+    }
+
+    // Parse the 'jsonPayload' string to get the actual JSON object
+    def jsonPayloadString = sMap.jsonPayload
+
+    if (!jsonPayloadString) {
+        println("Error: 'jsonPayloadString' is null or empty.")
+        return
+    }
+
+    def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
+
+    // Validate that 'testPlans' exists and is a list
+    if (!jsonPayload.testPlans || !(jsonPayload.testPlans instanceof List)) {
+        println("Error: 'testPlans' is missing or is not a list in the 'jsonPayload'.")
+        return
+    }
+
+    // Loop through each test plan and generate a JMX file
+    jsonPayload.testPlans.eachWithIndex { testPlan, index ->
+        def testPlanName = testPlan.name
+        def numThreads = testPlan.threadGroup?.numThreads ?: 1
+        def rampTime = testPlan.threadGroup?.rampTime ?: 1
+        def loopCount = testPlan.threadGroup?.loopCount ?: 1
+        def domain = testPlan.httpSampler?.domain ?: ""
+        def path = testPlan.httpSampler?.path ?: ""
+        def method = testPlan.httpSampler?.method ?: "GET"
+        def description = testPlan.httpSampler?.description ?: ""
+
+        // Log the values to check if anything is null
+        println("Processing Test Plan: ${testPlanName}")
+        println("numThreads: ${numThreads}, rampTime: ${rampTime}, loopCount: ${loopCount}, domain: ${domain}, path: ${path}, method: ${method}")
+
+        // Create JMX content
+        def jmxContent = """<?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="JMX template sample">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="${testPlanName}">
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
         <collectionProp name="Arguments.arguments"/>
       </elementProp>
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
-        <intProp name="ThreadGroup.num_threads">1</intProp>
-        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <intProp name="ThreadGroup.num_threads">${numThreads}</intProp>
+        <intProp name="ThreadGroup.ramp_time">${rampTime}</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <stringProp name="LoopController.loops">${loopCount}</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="false">
-          <collectionProp name="Arguments.arguments">
-            <elementProp name="id" elementType="Argument">
-              <stringProp name="Argument.name">id</stringProp>
-              <stringProp name="Argument.value">default_id</stringProp>
-              <stringProp name="Argument.metadata">=</stringProp>
-            </elementProp>
-          </collectionProp>
-        </Arguments>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="HTTP Request">
+          <stringProp name="HTTPSampler.domain">${domain}</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">${path}</stringProp>
+          <stringProp name="HTTPSampler.method">${method}</stringProp>
+          <stringProp name="HTTPSampler.comment">${description}</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
         <hashTree/>
-        <!-- First HTTP POST Request -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="HTTP POST Request">
-          <stringProp name="HTTPSampler.domain">ig.mobiusdtaas.ai</stringProp>
-          <stringProp name="HTTPSampler.protocol">https</stringProp>
-          <stringProp name="HTTPSampler.path">/tf-entity-ingestion/v1.0/schemas/66a276b4f94e743dac786ccb/instances?upsert=true</stringProp>
-          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
-          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
-            <collectionProp name="Arguments.arguments">
-              <elementProp name="" elementType="HTTPArgument">
-                <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">[&#xd;
-    {&#xd;
-        &quot;id&quot;: &quot;${__P(id)}&quot;,&#xd;
-        &quot;student_name&quot;: &quot;John Doe&quot;,&#xd;
-        &quot;age&quot;: &quot;20&quot;,&#xd;
-        &quot;gender&quot;: &quot;Male&quot;&#xd;
-    }&#xd;
-]</stringProp>
-                <stringProp name="Argument.metadata">=</stringProp>
-              </elementProp>
-            </collectionProp>
-          </elementProp>
-        </HTTPSamplerProxy>
-        <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
-            <collectionProp name="HeaderManager.headers">
-              <elementProp name="" elementType="Header">
-                <stringProp name="Header.name">Content-Type</stringProp>
-                <stringProp name="Header.value">application/json</stringProp>
-              </elementProp>
-              <elementProp name="" elementType="Header">
-                <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI3Ny1NUVdFRTNHZE5adGlsWU5IYmpsa2dVSkpaWUJWVmN1UmFZdHl5ejFjIn0.eyJleHAiOjE3MTkzNDI5NDQsImlhdCI6MTcxOTMwNjk0NCwianRpIjoiZTU2MmYzNjItNTc4My00YjgwLWExYjctZTA3MWE1ZWY4NzlhIiwiaXNzIjoiaHR0cDovL2tleWNsb2FrLmtleWNsb2FrLnN2Yy5jbHVzdGVyLmxvY2FsOjgwODAvcmVhbG1zL21hc3RlciIsImF1ZCI6WyJCT0xUWk1BTk5fQk9UIiwiUEFTQ0FMX0lOVEVMTElHRU5DRSIsIk1PTkVUIiwiYWNjb3VudCIsIlZJTkNJIl0sInN1YiI6IjMwMzdkZjZiLWE0YTUtNDE1Ni1hMTI4LWQwZTdkYTM5YzA3OCIsInR5cCI6IkJlYXJlciIsImF6cCI6IkhPTEFDUkFDWSIsInNlc3Npb25fc3RhdGUiOiIzYjRmYWQ1MC04ZTJmLTQ1MmYtYTg5Mi0xNWFkZTFkZTUyMjUiLCJuYW1lIjoibW9iaXVzIG1vYml1cyIsImdpdmVuX25hbWUiOiJtb2JpdXMiLCJmYW1pbHlfbmFtZSI6Im1vYml1cyIsInByZWZlcnJlZF91c2VybmFtZSI6InBhc3N3b3JkX3RlbmFudF9tb2JpdXNAbW9iaXVzZHRhYXMuYWkiLCJlbWFpbCI6InBhc3N3b3JkX3RlbmFudF9tb2JpdXNAbW9iaXVzZHRhYXMuYWkiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyIvKiJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1tYXN0ZXIiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiQk9MVFpNQU5OX0JPVCI6eyJyb2xlcyI6WyJCT0xUWk1BTk5fQk9UX1VTRVIiXX0sIlBBU0NBTF9JTlRFTExJR0VOQ0UiOnsicm9sZXMiOlsiUEFTQ0FMX0lOVEVMTElHRU5DRV9VU0VSIl19LCJNT05FVCI6eyJyb2xlcyI6WyJNT05FVF9VU0VSIl19LCJIT0xBQ1JBQ1kiOnsicm9sZXMiOlsiSE9MQUNSQUNZX1VTRVIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfSwiVklOQ0kiOnsicm9sZXMiOlsiVklOQ0lfVVNFUiJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsInNpZCI6IjNiNGZhZDUwLThlMmYtNDUyZi1hODkyLTE1YWRlMWRlNTIyNSIsInRlbmFudElkIjoiMzAzN2RmNmItYTRhNS00MTU2LWExMjgtZDBlN2RhMzljMDc4In0=.h_3ef5WsfIPlfgf_WLzCGdkX7ETtxnr3LVHo03Pa0bLP9GXV7MSb2mAZbllsbkHQDH_N3THBIlryD0crTS4mV5tCqJxlPoPzMyj0UoKG08hefu45XMJr7I5dBLQNsLbOGTFNHCoHgAmzVUkRyWmVmHfCloWWxFaApXFt6JUk9aCVU1L9UX6KDFZTMyNTNsYb3VxfTD-Drg</stringProp>
-              </elementProp>
-            </collectionProp>
-          </HeaderManager>
-        </hashTree>
-        <!-- Second HTTP GET Request -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="HTTP GET Employee Data">
-          <stringProp name="HTTPSampler.domain">dummy.restapiexample.com</stringProp>
-          <stringProp name="HTTPSampler.protocol">https</stringProp>
-          <stringProp name="HTTPSampler.path">/api/v1/employee/1</stringProp>
-          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
-        </HTTPSamplerProxy>
-        <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
-            <collectionProp name="HeaderManager.headers">
-              <elementProp name="" elementType="Header">
-                <stringProp name="Header.name">Content-Type</stringProp>
-                <stringProp name="Header.value">application/json</stringProp>
-              </elementProp>
-            </collectionProp>
-          </HeaderManager>
-        </hashTree>
       </hashTree>
     </hashTree>
   </hashTree>
-</jmeterTestPlan>'''
+</jmeterTestPlan>
+"""
 
-def filePath = "/path/to/your/output/file/sample_generated_test.jmx"
-Files.write(Paths.get(filePath), emptyJMXContent.getBytes())
-log.info("JMX file created at: " + filePath)
+        // Define the file path for the JMX file
+        def filePath = "/root/testflink/apache-jmeter/bin/output_${index + 1}.jmx"
+
+        try {
+            // Write the JMX content to the file
+            Files.write(Paths.get(filePath), jmxContent.getBytes(StandardCharsets.UTF_8))
+            println("JMX file created successfully at: " + filePath)
+        } catch (IOException e) {
+            println("Failed to create JMX file: " + e.message)
+        }
+    }
+} catch (Exception e) {
+    println("An unexpected error occurred: " + e.message)
+    e.printStackTrace() // Print stack trace for more detailed debugging information
+}
