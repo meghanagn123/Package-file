@@ -1,7 +1,4 @@
 import groovy.json.JsonSlurper
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.nio.charset.StandardCharsets
 
 try {
     // Retrieve the JSON string from the BPMN variable 's'
@@ -12,9 +9,6 @@ try {
         return
     }
 
-    // Debug: Log the raw sString value
-    println("sString: " + sString)
-
     // Parse the 's' variable to get the JSON payload
     def sMap = new JsonSlurper().parseText(sString)
 
@@ -23,18 +17,10 @@ try {
         return
     }
 
-    // 'jsonPayload' is likely already a stringified JSON, so we need to parse it again
+    // 'jsonPayload' is a stringified JSON, so we need to parse it again
     def jsonPayloadString = sMap.jsonPayload
 
-    if (!jsonPayloadString) {
-        println("Error: 'jsonPayloadString' is null or empty.")
-        return
-    }
-
-    // Debug: Log the jsonPayloadString value
-    println("jsonPayloadString: " + jsonPayloadString)
-
-    // Parse the JSON payload string into a JSON object
+    // Remove extra escaping by parsing it once more
     def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
 
     // Validate that 'testPlans' exists and is a list
