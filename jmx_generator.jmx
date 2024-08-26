@@ -21,7 +21,15 @@ try {
     }
 
     // Step 3: Parse the 'jsonPayload' string into a Groovy map
-    def jsonPayload = new JsonSlurper().parseText(sMap.jsonPayload)
+    def jsonPayloadString = sMap.jsonPayload
+
+    if (!jsonPayloadString) {
+        println("Error: 'jsonPayloadString' is null or empty.")
+        return
+    }
+
+    // Parse the JSON payload back into a Groovy map
+    def jsonPayload = new JsonSlurper().parseText(jsonPayloadString)
 
     if (!jsonPayload.testPlans || !(jsonPayload.testPlans instanceof List)) {
         println("Error: 'testPlans' is missing or is not a list in the 'jsonPayload'.")
